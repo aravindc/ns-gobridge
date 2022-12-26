@@ -1,0 +1,6 @@
+.env*
+ns-gobridge
+.pre-commit-config.yaml
+commitlint.config.js
+supabase
+workpad
