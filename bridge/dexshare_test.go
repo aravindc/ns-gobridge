@@ -1,14 +1,9 @@
 package bridge
 
 import (
-	"ns-gobridge/model"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
-
-	"github.com/joho/godotenv"
-	log "github.com/sirupsen/logrus"
 )
 
 func TestGetDexServer(t *testing.T) {
@@ -62,73 +57,73 @@ func Test_getPayload(t *testing.T) {
 	}
 }
 
-func TestGetAccountId(t *testing.T) {
-	exePath, _ := os.Getwd()
-	log.Info(exePath)
-	envPath := filepath.Join(filepath.Dir(exePath), ".env.test")
-	log.Info(envPath)
-	_err := godotenv.Load(envPath)
-	if _err != nil {
-		log.Info(_err)
-	}
-	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
-	type args struct {
-		auth_url string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{name: "", args: args{auth_url: test_auth_url}, want: "2b7646cf-73ba-4c19-8463-f4fbda8c2af4"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetAccountId(tt.args.auth_url); got != tt.want {
-				t.Errorf("GetAccountId() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func TestGetAccountId(t *testing.T) {
+// 	exePath, _ := os.Getwd()
+// 	log.Info(exePath)
+// 	envPath := filepath.Join(filepath.Dir(exePath), ".env.test")
+// 	log.Info(envPath)
+// 	_err := godotenv.Load(envPath)
+// 	if _err != nil {
+// 		log.Info(_err)
+// 	}
+// 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
+// 	type args struct {
+// 		auth_url string
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want string
+// 	}{
+// 		{name: "", args: args{auth_url: test_auth_url}, want: "2b7646cf-73ba-4c19-8463-f4fbda8c2af4"},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := GetAccountId(tt.args.auth_url); got != tt.want {
+// 				t.Errorf("GetAccountId() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
-func TestGetSessionId(t *testing.T) {
-	type args struct {
-		login_url string
-		auth_url  string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetSessionId(tt.args.login_url, tt.args.auth_url); got != tt.want {
-				t.Errorf("GetSessionId() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func TestGetSessionId(t *testing.T) {
+// 	type args struct {
+// 		login_url string
+// 		auth_url  string
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want string
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := GetSessionId(tt.args.login_url, tt.args.auth_url); got != tt.want {
+// 				t.Errorf("GetSessionId() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
-func TestGetLatestBG(t *testing.T) {
-	type args struct {
-		latestbg_url string
-		session_id   string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []model.NsBgEntry
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetLatestBG(tt.args.latestbg_url, tt.args.session_id); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetLatestBG() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func TestGetLatestBG(t *testing.T) {
+// 	type args struct {
+// 		latestbg_url string
+// 		session_id   string
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want []model.NsBgEntry
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := GetLatestBG(tt.args.latestbg_url, tt.args.session_id); !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("GetLatestBG() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
