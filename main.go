@@ -2,6 +2,7 @@ package main
 
 import (
 	"ns-gobridge/bridge"
+	"ns-gobridge/common"
 	"ns-gobridge/db"
 	"os"
 	"path/filepath"
@@ -32,6 +33,9 @@ func init() {
 	if err != nil {
 		log.Fatal("Failed to get executable path: ", err)
 	}
+
+	// Set Env with AWS secrets
+	common.SetEnvWithAwsSecret()
 
 	// Load .env as environment variables from base path
 	_, envExists := os.LookupEnv("NS_ENV")

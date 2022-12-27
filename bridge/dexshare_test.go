@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"ns-gobridge/common"
 	"os"
 	"reflect"
 	"testing"
@@ -55,36 +56,33 @@ func Test_getPayload(t *testing.T) {
 			}
 		})
 	}
+
+	os.Unsetenv("BRIDGE_USER")
+	os.Unsetenv("BRIDGE_PASS")
+	os.Unsetenv("APPLICATION_ID")
 }
 
-// func TestGetAccountId(t *testing.T) {
-// 	exePath, _ := os.Getwd()
-// 	log.Info(exePath)
-// 	envPath := filepath.Join(filepath.Dir(exePath), ".env.test")
-// 	log.Info(envPath)
-// 	_err := godotenv.Load(envPath)
-// 	if _err != nil {
-// 		log.Info(_err)
-// 	}
-// 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
-// 	type args struct {
-// 		auth_url string
-// 	}
-// 	tests := []struct {
-// 		name string
-// 		args args
-// 		want string
-// 	}{
-// 		{name: "", args: args{auth_url: test_auth_url}, want: "2b7646cf-73ba-4c19-8463-f4fbda8c2af4"},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			if got := GetAccountId(tt.args.auth_url); got != tt.want {
-// 				t.Errorf("GetAccountId() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestGetAccountId(t *testing.T) {
+	common.SetEnvWithAwsSecret()
+	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
+	type args struct {
+		auth_url string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "", args: args{auth_url: test_auth_url}, want: "2b7646cf-73ba-4c19-8463-f4fbda8c2af4"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetAccountId(tt.args.auth_url); got != tt.want {
+				t.Errorf("GetAccountId() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 // func TestGetSessionId(t *testing.T) {
 // 	type args struct {
