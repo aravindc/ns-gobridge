@@ -4,6 +4,7 @@ import (
 	"ns-gobridge/common"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 )
 
@@ -84,26 +85,57 @@ func TestGetAccountId(t *testing.T) {
 	}
 }
 
-// func TestGetSessionId(t *testing.T) {
-// 	type args struct {
-// 		login_url string
-// 		auth_url  string
-// 	}
-// 	tests := []struct {
-// 		name string
-// 		args args
-// 		want string
-// 	}{
-// 		// TODO: Add test cases.
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			if got := GetSessionId(tt.args.login_url, tt.args.auth_url); got != tt.want {
-// 				t.Errorf("GetSessionId() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestGetSessionIdLength(t *testing.T) {
+	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
+	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
+	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
+	type args struct {
+		login_url string
+		auth_url  string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{name: "", args: args{auth_url: test_auth_url, login_url: test_login_url}, want: 36},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetSessionId(tt.args.login_url, tt.args.auth_url)
+			if len(got) != tt.want {
+				t.Errorf("Length of GetSessionId() output = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetSessionIdLFormat(t *testing.T) {
+	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
+	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
+	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
+	type args struct {
+		login_url string
+		auth_url  string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "", args: args{auth_url: test_auth_url, login_url: test_login_url}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetSessionId(tt.args.login_url, tt.args.auth_url)
+			strFormat := "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+			r := regexp.MustCompile(strFormat)
+			if r.MatchString(got) != tt.want {
+				t.Errorf("Format of GetSessionId() output = %v, want %v", got, strFormat)
+			}
+		})
+	}
+}
 
 // func TestGetLatestBG(t *testing.T) {
 // 	type args struct {
