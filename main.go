@@ -34,9 +34,6 @@ func init() {
 		log.Fatal("Failed to get executable path: ", err)
 	}
 
-	// Set Env with AWS secrets
-	common.SetEnvWithAwsSecret()
-
 	// Load .env as environment variables from base path
 	_, envExists := os.LookupEnv("NS_ENV")
 	if !envExists {
@@ -60,6 +57,15 @@ func init() {
 	if _err != nil {
 		log.Fatal("Unable to load .env file ", err)
 	}
+
+	// If AWS_REGION not available, default to eu-west-1
+	_, awsRegionExists := os.LookupEnv("AWS_REGION")
+	if !awsRegionExists {
+		os.Setenv("AWS_REGION", "eu-west-1")
+	}
+
+	// Set Env with AWS SSM
+	common.SetEnvWithAwsSSM(os.Getenv("AWS_PARAMETER_NAME"), os.Getenv("AWS_REGION"))
 
 	// Check if BRIDGE_SERVER variable value is set
 	_, bridgeServerExists := os.LookupEnv("BRIDGE_SERVER")

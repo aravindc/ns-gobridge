@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/config v1.18.7
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.16.11
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.4
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/goccy/go-json v0.10.0
@@ -26,6 +27,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.7 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect

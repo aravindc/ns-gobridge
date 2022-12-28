@@ -63,7 +63,7 @@ func Test_getPayload(t *testing.T) {
 }
 
 func TestGetAccountId(t *testing.T) {
-	common.SetEnvWithAwsSecret()
+	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	type args struct {
 		auth_url string
