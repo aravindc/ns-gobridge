@@ -137,23 +137,36 @@ func TestGetSessionIdLFormat(t *testing.T) {
 	}
 }
 
-// func TestGetLatestBG(t *testing.T) {
-// 	type args struct {
-// 		latestbg_url string
-// 		session_id   string
-// 	}
-// 	tests := []struct {
-// 		name string
-// 		args args
-// 		want []model.NsBgEntry
-// 	}{
-// 		// TODO: Add test cases.
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			if got := GetLatestBG(tt.args.latestbg_url, tt.args.session_id); !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("GetLatestBG() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestGetLatestBG(t *testing.T) {
+	os.Setenv("RECORD_COUNT", "3")
+	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
+	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
+	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
+	test_latestbg_url := "http://shareous1.dexcom.com/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues"
+	test_session_id := GetSessionId(test_login_url, test_auth_url)
+	type args struct {
+		latestbg_url string
+		session_id   string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "", args: args{latestbg_url: test_latestbg_url, session_id: test_session_id}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			strFormat := "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+			got := GetLatestBG(tt.args.latestbg_url, tt.args.session_id)
+			r := regexp.MustCompile(strFormat)
+			if r.MatchString(got[0].DateString) != tt.want {
+				t.Errorf("GetLatestBG() = %v, want %v", got, tt.want)
+			} else if got[0].Type != "sgv" {
+				t.Errorf("GetLatestBG() = %v, want %v", got[0].Type, "sgv")
+			} else if got[0].Device != "share2" {
+				t.Errorf("GetLatestBG() = %v, want %v", got[0].Device, "share2")
+			}
+		})
+	}
+}
