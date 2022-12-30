@@ -23,6 +23,8 @@ jobs:
       shell: bash
       env:
         COSIGN_KEY: ${{ secrets.COSIGN_PVT_KEY }}
+    - name: Setup cosign
+      uses: sigstore/cosign-installer@v2.0.0
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@master
       with:
