@@ -1,0 +1,20 @@
+name: Build Release
+
+on: release
+
+jobs:
+  release-linux-amd64:
+    name: release linux/amd64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: compile and release
+      uses: ngs/go-release.action@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+        AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+        AWS_PARAMETER_NAME: ${{ secrets.AWS_PARAMETER_NAME }}
+        GOARCH: amd64
+        GOOS: linux
+        EXTRA_FILES: "LICENSE"
