@@ -4,3 +4,4 @@ ns-gobridge
 commitlint.config.js
 supabase
 workpad
+dist/
