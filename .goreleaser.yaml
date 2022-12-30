@@ -43,3 +43,13 @@ changelog:
 # Feel free to remove those if you don't want/use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+signs:
+- cmd: cosign
+  stdin: ${{ secrets.COSIGN_PWD }}
+  args: ["sign-blob", "-key=cosign.key", "-output=${signature}", "${artifact}"]
+  artifacts: checksum
+
+docker_signs:
+- artifacts: manifests
+  stdin: ${{ secrets.COSIGN_PWD }}
