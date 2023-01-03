@@ -39,7 +39,17 @@ changelog:
       - '^docs:'
       - '^test:'
 
-# The lines beneath this are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+signs:
+- cmd: cosign
+  id: "ns-gobridge-sig"
+  # env:
+  # - COSIGN_EXPERIMENTAL=1
+  args:
+    - sign-blob
+    - '--key=cosign.key'
+    - '--output-signature=${signature}'
+    - '${artifact}'
+  artifacts: all
+  output: true
+  stdin: '{{ .Env.COSIGN_PWD }}'

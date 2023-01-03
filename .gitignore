@@ -5,3 +5,4 @@ commitlint.config.js
 supabase
 workpad
 dist/
+cosign.*
