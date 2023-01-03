@@ -9,7 +9,6 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-      - COSIGN_PWD=${{ secrets.COSIGN_PWD }}
     goos:
       - linux
     goarch:
@@ -60,6 +59,7 @@ signs:
   id: "ns-gobridge-sig"
   env:
   - COSIGN_EXPERIMENTAL=1
+  - COSIGN_PWD=${{ secrets.COSIGN_PWD }}
   args:
     - sign-blob
     - '--key=cosign.key'
