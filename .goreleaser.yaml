@@ -9,6 +9,7 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+      - COSIGN_PWD=${{ secrets.COSIGN_PWD }}
     goos:
       - linux
     goarch:
@@ -56,6 +57,7 @@ changelog:
 
 signs:
 - cmd: cosign
+  id: "ns-gobridge-sig"
   env:
   - COSIGN_EXPERIMENTAL=1
   args:
@@ -63,6 +65,6 @@ signs:
     - '--key=cosign.key'
     - '--output-signature=${signature}'
     - '${artifact}'
-  artifacts: ${artifact}
+  artifacts: all
   output: true
-  stdin: ${{ secrets.COSIGN_PWD }}
+  stdin: '{{ .Env.COSIGN_PWD }}'
