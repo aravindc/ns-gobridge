@@ -58,6 +58,16 @@ func init() {
 		log.Fatal("Unable to load .env file ", err)
 	}
 
+	_, awsAccessKeyExists := os.LookupEnv("AWS_ACCESS_KEY")
+	if !awsAccessKeyExists {
+		log.Fatal("Environment variables: AWS_ACCESS_KEY shoud be set")
+	}
+
+	_, awsSecretKeyExists := os.LookupEnv("AWS_SECRET_KEY")
+	if !awsSecretKeyExists {
+		log.Fatal("Environment variables: AWS_SECRET_KEY shoud be set")
+	}
+
 	// If AWS_REGION not available, default to eu-west-1
 	_, awsRegionExists := os.LookupEnv("AWS_REGION")
 	if !awsRegionExists {
