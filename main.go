@@ -74,6 +74,11 @@ func init() {
 		os.Setenv("AWS_REGION", "eu-west-1")
 	}
 
+	_, recordCountExists := os.LookupEnv("RECORD_COUNT")
+	if !recordCountExists {
+		os.Setenv("RECORD_COUNT", "3")
+	}
+
 	// Set Env with AWS SSM
 	common.SetEnvWithAwsSSM(os.Getenv("AWS_PARAMETER_NAME"), os.Getenv("AWS_REGION"))
 
@@ -106,7 +111,7 @@ func getBGData() {
 	session_id := bridge.GetSessionId(login_url, auth_url)
 	latest_bg := bridge.GetLatestBG(latestbg_url, session_id)
 
-	supabase_client := db.DbClient(os.Getenv("SUPABASE_URI"))
+	supabase_client := db.DbClient("https://pszpprtijyjluupjhuxv.supabase.co/rest/v1/")
 
 	// Initial Connection
 	for _, val := range latest_bg {
