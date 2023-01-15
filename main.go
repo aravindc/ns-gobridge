@@ -79,7 +79,7 @@ func getBGData() {
 	session_id := bridge.GetSessionId(login_url, auth_url)
 	latest_bg := bridge.GetLatestBG(latestbg_url, session_id)
 
-	supabase_client := db.DbClient("https://pszpprtijyjluupjhuxv.supabase.co/rest/v1/")
+	supabase_client := db.DbClient(os.Getenv("SUPABASE_SERVER"))
 
 	// Initial Connection
 	for _, val := range latest_bg {
