@@ -5,10 +5,8 @@ import (
 	"ns-gobridge/common"
 	"ns-gobridge/db"
 	"os"
-	"path/filepath"
 	"time"
 
-	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 )
@@ -27,36 +25,6 @@ func init() {
 		logLevel = log.InfoLevel
 	}
 	log.SetLevel(logLevel)
-
-	// Get base path where executable is stored
-	exePath, err := os.Executable()
-	if err != nil {
-		log.Fatal("Failed to get executable path: ", err)
-	}
-
-	// Load .env as environment variables from base path
-	_, envExists := os.LookupEnv("NS_ENV")
-	if !envExists {
-		log.Fatal("Environment variable: NS_ENV indicating the environment should be set")
-	}
-	env := os.Getenv("NS_ENV")
-	if env == "" || env == "development" {
-		env = ".env.development"
-	} else if env == "production" {
-		env = ".env"
-	} else if env == "test" {
-		env = ".env.test"
-	} else {
-		log.Fatal("Environment should be development / test / production")
-	}
-
-	log.Info("About to load env file: ", env)
-
-	envPath := filepath.Join(filepath.Dir(exePath), env)
-	_err := godotenv.Load(envPath)
-	if _err != nil {
-		log.Fatal("Unable to load .env file ", err)
-	}
 
 	_, awsAccessKeyExists := os.LookupEnv("AWS_ACCESS_KEY")
 	if !awsAccessKeyExists {

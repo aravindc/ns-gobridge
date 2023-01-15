@@ -1,0 +1,7 @@
+version: '3.8'
+
+services:
+  app:
+    image: gluceye:1.0.0
+    env_file:
+      - .env
