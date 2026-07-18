@@ -36,6 +36,31 @@ func TrendToDirection(trend string) int {
 	return direction
 }
 
+func DirectionToArrow(direction int) string {
+	switch direction {
+	case 1:
+		return "⇈" // DoubleUp
+	case 2:
+		return "↑" // SingleUp
+	case 3:
+		return "↗" // FortyFiveUp
+	case 4:
+		return "→" // Flat
+	case 5:
+		return "↘" // FortyFiveDown
+	case 6:
+		return "↓" // SingleDown
+	case 7:
+		return "⇊" // DoubleDown
+	case 8:
+		return "?" // NotComputable
+	case 9:
+		return "↕" // RATE OUT OF RANGE
+	default:
+		return "-" // NONE / unknown
+	}
+}
+
 func TernaryIf[T any](cond bool, vtrue, vfalse T) T {
 	if cond {
 		return vtrue
