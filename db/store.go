@@ -46,7 +46,7 @@ func SelectEntries(db_client *sql.DB) []model.Nightscoutdb {
 func EntriesExist(db_client *sql.DB, ns_time int64) bool {
 	db := bun.NewDB(db_client, pgdialect.New())
 	ctx := context.Background()
-	exists, err := db.NewSelect().Table("nightscoutdb").Where(fmt.Sprintf("ns_time=%d", ns_time)).Exists(ctx)
+	exists, err := db.NewSelect().Table("nightscoutdb").Where("ns_time = ?", ns_time).Exists(ctx)
 	if err != nil {
 		log.Fatal("Exists error: ", err)
 	}
