@@ -1,9 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"ns-gobridge/bridge"
-	"ns-gobridge/common"
 	"ns-gobridge/db"
+	"ns-gobridge/web"
 	"os"
 	"path/filepath"
 	"time"
@@ -58,29 +59,10 @@ func init() {
 		log.Fatal("Unable to load .env file ", err)
 	}
 
-	_, awsAccessKeyExists := os.LookupEnv("AWS_ACCESS_KEY")
-	if !awsAccessKeyExists {
-		log.Fatal("Environment variables: AWS_ACCESS_KEY shoud be set")
-	}
-
-	_, awsSecretKeyExists := os.LookupEnv("AWS_SECRET_KEY")
-	if !awsSecretKeyExists {
-		log.Fatal("Environment variables: AWS_SECRET_KEY shoud be set")
-	}
-
-	// If AWS_REGION not available, default to eu-west-1
-	_, awsRegionExists := os.LookupEnv("AWS_REGION")
-	if !awsRegionExists {
-		os.Setenv("AWS_REGION", "eu-west-1")
-	}
-
 	_, recordCountExists := os.LookupEnv("RECORD_COUNT")
 	if !recordCountExists {
 		os.Setenv("RECORD_COUNT", "3")
 	}
-
-	// Set Env with AWS SSM
-	common.SetEnvWithAwsSSM(os.Getenv("AWS_PARAMETER_NAME"), os.Getenv("AWS_REGION"))
 
 	// Check if BRIDGE_SERVER variable value is set
 	_, bridgeServerExists := os.LookupEnv("BRIDGE_SERVER")
@@ -100,7 +82,7 @@ func init() {
 }
 
 // Retrieve BG data every 2 minutes
-func getBGData() {
+func getBGData(pg_client *sql.DB) {
 	base_url := "https://" + bridge.GetDexServer()
 	auth_url := base_url + "/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	login_url := base_url + "/ShareWebServices/Services/General/LoginPublisherAccountById"
@@ -111,15 +93,17 @@ func getBGData() {
 	session_id := bridge.GetSessionId(login_url, auth_url)
 	latest_bg := bridge.GetLatestBG(latestbg_url, session_id)
 
-	supabase_client := db.DbClient("https://pszpprtijyjluupjhuxv.supabase.co/rest/v1/")
-
 	// Initial Connection
 	for _, val := range latest_bg {
 		// Check if record exists based on hash value
-		if !db.EntriesExist(supabase_client, val) {
+		if !db.EntriesExist(pg_client, int64(val.Ns_time)) {
 			// Insert record into db if it does exist
-			db.InsertEntries(supabase_client, val)
+			db.InsertEntries(pg_client, val)
+		} else {
+			log.Info("Record already exists")
 		}
+		log.Info("The value of SGV is: ", val)
+		log.Info("Records: ", db.SelectEntries(pg_client))
 	}
 
 	// Run this ticker every 2 minutes
@@ -127,15 +111,35 @@ func getBGData() {
 	for range ticker.C {
 		latest_bg := bridge.GetLatestBG(latestbg_url, session_id)
 		for _, val := range latest_bg {
-			if !db.EntriesExist(supabase_client, val) {
-				db.InsertEntries(supabase_client, val)
+			if !db.EntriesExist(pg_client, int64(val.Ns_time)) {
+				db.InsertEntries(pg_client, val)
+			} else {
+				log.Info("Record already exists")
 			}
+			log.Info(val)
 		}
 	}
 }
 
 func main() {
-	go getBGData()
-	// Insert other function calls here
-	select {}
+	pg_sslmode := os.Getenv("PG_SSLMODE")
+	if pg_sslmode == "" {
+		pg_sslmode = "require"
+	}
+	pg_client := db.DbClient(
+		os.Getenv("PG_HOST"),
+		os.Getenv("PG_PORT"),
+		os.Getenv("PG_USER"),
+		os.Getenv("PG_PASS"),
+		os.Getenv("PG_DB"),
+		pg_sslmode,
+	)
+
+	go getBGData(pg_client)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Fatal(web.Serve(pg_client, port))
 }

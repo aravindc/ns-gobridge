@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/cnf/structhash"
 	resty "github.com/go-resty/resty/v2"
 	"github.com/goccy/go-json"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +36,7 @@ func GetAccountId(auth_url string) string {
 		log.Warning("Request did not complete successfully ", err)
 	}
 	accountId := common.CleanString(resp.String())
+	log.Debug("GetAccountId raw response: ", resp.String())
 	return accountId
 }
 
@@ -55,10 +55,11 @@ func GetSessionId(login_url string, auth_url string) string {
 		log.Warning("Request did not complete successfully ", err)
 	}
 	sessionId := common.CleanString(resp.String())
+	log.Debug("GetSessionId raw response: ", resp.String())
 	return sessionId
 }
 
-func GetLatestBG(latestbg_url string, session_id string) []model.NsBgEntry {
+func GetLatestBG(latestbg_url string, session_id string) []model.Nightscoutdb {
 	query_string := common.CleanString(fmt.Sprintf("sessionId=%s&minutes=1440&maxCount=%s", session_id, os.Getenv("RECORD_COUNT")))
 	client := resty.New()
 	resp, err := client.R().
@@ -69,30 +70,23 @@ func GetLatestBG(latestbg_url string, session_id string) []model.NsBgEntry {
 		log.Warning("Request did not complete successfully ", err)
 	}
 	latest_bg := resp.Body()
+	log.Debug("GetLatestBG raw response: ", resp.String())
 	var data []model.DexBgReading
 	err = json.Unmarshal(latest_bg, &data)
 	if err != nil {
 		log.Error(err)
 	}
 
-	nsBgEntries := []model.NsBgEntry{}
+	nsEntries := []model.Nightscoutdb{}
 	for _, val := range data {
-		var NsBgEntry model.NsBgEntry
-		NsBgEntry.Sgv = val.Value
-		NsBgEntry.Date = common.CleanDateString(val.WT)
-		NsBgEntry.DateString = time.UnixMilli(common.CleanDateString(val.WT)).Format(time.RFC3339)
-		NsBgEntry.Device = "share2"
-		NsBgEntry.Type = "sgv"
-		NsBgEntry.Trend = common.TrendToDirection(val.Trend)
-		NsBgEntry.Direction = val.Trend
-		// TODO: UtcOffset is hardcoded as zero, this needs to be changed based on user's timezone
-		NsBgEntry.UtcOffset = 0
-		hashValue, err := structhash.Hash(NsBgEntry, 2)
-		if err != nil {
-			log.Error(err)
-		}
-		NsBgEntry.Hash = string(hashValue)
-		nsBgEntries = append(nsBgEntries, NsBgEntry)
+		var NsEntry model.Nightscoutdb
+		NsEntry.Sgv = val.Value
+		NsEntry.Ns_time = common.CleanDateString(val.WT)
+		NsEntry.Ns_datetime = time.UnixMilli(common.CleanDateString(val.WT))
+		NsEntry.Trend = common.TrendToDirection(val.Trend)
+		NsEntry.Utcoffset = 0
+		NsEntry.Systime = time.UnixMilli(common.CleanDateString(val.WT))
+		nsEntries = append(nsEntries, NsEntry)
 	}
-	return nsBgEntries
+	return nsEntries
 }

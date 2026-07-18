@@ -6,10 +6,6 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
-      AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-      AWS_PARAMETER_NAME: ${{ secrets.AWS_PARAMETER_NAME }}
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go

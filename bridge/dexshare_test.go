@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"ns-gobridge/common"
 	"os"
 	"reflect"
 	"regexp"
@@ -64,7 +63,6 @@ func Test_getPayload(t *testing.T) {
 }
 
 func TestGetAccountId(t *testing.T) {
-	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	type args struct {
 		auth_url string
@@ -86,7 +84,6 @@ func TestGetAccountId(t *testing.T) {
 }
 
 func TestGetSessionIdLength(t *testing.T) {
-	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
 	type args struct {
@@ -111,7 +108,6 @@ func TestGetSessionIdLength(t *testing.T) {
 }
 
 func TestGetSessionIdLFormat(t *testing.T) {
-	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
 	type args struct {
@@ -139,7 +135,6 @@ func TestGetSessionIdLFormat(t *testing.T) {
 
 func TestGetLatestBG(t *testing.T) {
 	os.Setenv("RECORD_COUNT", "3")
-	common.SetEnvWithAwsSSM("prod-bridge-secrets", "eu-west-1")
 	test_auth_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/AuthenticatePublisherAccount"
 	test_login_url := "http://shareous1.dexcom.com/ShareWebServices/Services/General/LoginPublisherAccountById"
 	test_latestbg_url := "http://shareous1.dexcom.com/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues"
@@ -160,12 +155,8 @@ func TestGetLatestBG(t *testing.T) {
 			strFormat := "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
 			got := GetLatestBG(tt.args.latestbg_url, tt.args.session_id)
 			r := regexp.MustCompile(strFormat)
-			if r.MatchString(got[0].DateString) != tt.want {
+			if r.MatchString(got[0].Ns_datetime.String()) != tt.want {
 				t.Errorf("GetLatestBG() = %v, want %v", got, tt.want)
-			} else if got[0].Type != "sgv" {
-				t.Errorf("GetLatestBG() = %v, want %v", got[0].Type, "sgv")
-			} else if got[0].Device != "share2" {
-				t.Errorf("GetLatestBG() = %v, want %v", got[0].Device, "share2")
 			}
 		})
 	}
