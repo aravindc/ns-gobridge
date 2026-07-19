@@ -63,6 +63,25 @@ docker build -t ns-gobridge .
 
 [docker-compose.yaml](docker-compose.yaml) runs the app alongside its own Postgres container and a [Caddy](https://caddyserver.com/) reverse proxy, with the `nightscoutdb` and `treatments` tables created automatically from [db/init/](db/init/) on first start. These init scripts only run against a fresh Postgres data volume — an already-initialized volume needs the new table(s) created manually (or the volume recreated) after pulling schema changes.
 
+The `postgres` and `ns-gobridge` services load their environment via `env_file` rather than inline `environment:` blocks, so before first use, create these two untracked files (matching the treatment of [.env.development](.env.development) — never commit real values):
+
+```bash
+# .env.postgres — consumed by the official postgres image
+cat > .env.postgres <<'EOF'
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=secret
+POSTGRES_DB=health
+EOF
+
+# .env.ns-gobridge — compose-specific overrides for ns-gobridge, on top of .env.development
+cat > .env.ns-gobridge <<'EOF'
+NS_ENV=development
+PG_HOST=postgres
+PG_PORT=5432
+PG_SSLMODE=disable
+EOF
+```
+
 ```bash
 docker compose up --build
 ```
