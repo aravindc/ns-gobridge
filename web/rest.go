@@ -561,6 +561,8 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/patterns/day-of-week", dayOfWeekPatternsHandler(db_client))
 		api.GET("/trend/rolling", rollingTrendHandler(db_client))
 		api.GET("/data-quality", dataQualityHandler(db_client))
+		api.GET("/treatments", treatmentsHandler(db_client))
+		api.POST("/treatments", createTreatmentHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
