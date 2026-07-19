@@ -2,6 +2,7 @@ package web
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -19,6 +20,16 @@ const (
 	statsCacheKey       = "stats:default"
 	cacheTTL            = 10 * time.Second
 )
+
+// periods maps supported ?period= values to their duration, looking back
+// from now. 1mth/3mths use fixed 30/90-day approximations rather than
+// calendar months, to keep the lookup a simple duration table.
+var periods = map[string]time.Duration{
+	"24h":   24 * time.Hour,
+	"1wk":   7 * 24 * time.Hour,
+	"1mth":  30 * 24 * time.Hour,
+	"3mths": 90 * 24 * time.Hour,
+}
 
 // requireAPIKey checks the X-API-Key header against API_KEY. If API_KEY is
 // unset, auth is disabled (e.g. for local development).
@@ -58,6 +69,23 @@ func parseRange(c *gin.Context) (time.Time, time.Time, error) {
 		to = parsed
 	}
 	return from, to, nil
+}
+
+// parsePeriod resolves the ?period= query param (one of "24h", "1wk",
+// "1mth", "3mths") to a from/to range ending now, and the normalized period
+// string. Defaults to "24h" when absent; returns an error for any other value.
+func parsePeriod(c *gin.Context) (time.Time, time.Time, string, error) {
+	period := c.Query("period")
+	if period == "" {
+		period = "24h"
+	}
+	dur, ok := periods[period]
+	if !ok {
+		return time.Time{}, time.Time{}, period, fmt.Errorf("invalid period %q", period)
+	}
+	to := time.Now()
+	from := to.Add(-dur)
+	return from, to, period, nil
 }
 
 // getLatestEntry fetches the latest reading, using the cache to avoid
@@ -193,6 +221,42 @@ func statsHandler(db_client *sql.DB, cache *ttlCache) gin.HandlerFunc {
 	}
 }
 
+// quartilesResponse formats a model.Quartiles for display in the given units.
+func quartilesResponse(period string, q model.Quartiles, units string) gin.H {
+	return gin.H{
+		"period": period,
+		"from":   q.From,
+		"to":     q.To,
+		"units":  units,
+		"count":  q.Count,
+		"min":    sgvForUnits(q.Min, units),
+		"q1":     sgvForUnits(int(math.Round(q.Q1)), units),
+		"median": sgvForUnits(int(math.Round(q.Median)), units),
+		"q3":     sgvForUnits(int(math.Round(q.Q3)), units),
+		"max":    sgvForUnits(q.Max, units),
+	}
+}
+
+// quartilesHandler returns glucose quartiles (Q1/median/Q3, plus min/max)
+// for a given lookback period: ?period=24h|1wk|1mth|3mths (default 24h).
+func quartilesHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		quartiles := model.ComputeQuartiles(entries, from, to)
+		c.JSON(http.StatusOK, quartilesResponse(period, quartiles, units))
+	}
+}
+
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -210,6 +274,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/current", currentHandler(db_client, cache))
 		api.GET("/entries", entriesHandler(db_client))
 		api.GET("/stats", statsHandler(db_client, cache))
+		api.GET("/quartiles", quartilesHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
