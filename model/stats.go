@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 const (
 	LowThreshold  = 70
@@ -82,4 +85,56 @@ func ComputeStats(entries []Nightscoutdb, from time.Time, to time.Time) Stats {
 	stats.TimeAboveRangePct = 100 * float64(above) / float64(len(entries))
 
 	return stats
+}
+
+type Quartiles struct {
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+	Count  int       `json:"count"`
+	Min    int       `json:"min"`
+	Q1     float64   `json:"q1"`
+	Median float64   `json:"median"`
+	Q3     float64   `json:"q3"`
+	Max    int       `json:"max"`
+}
+
+// percentile returns the p-th percentile (0<=p<=1) of a slice already
+// sorted ascending, using linear interpolation between closest ranks.
+func percentile(sorted []int, p float64) float64 {
+	if len(sorted) == 1 {
+		return float64(sorted[0])
+	}
+	rank := p * float64(len(sorted)-1)
+	lo := int(rank)
+	hi := lo + 1
+	if hi >= len(sorted) {
+		return float64(sorted[lo])
+	}
+	frac := rank - float64(lo)
+	return float64(sorted[lo]) + frac*float64(sorted[hi]-sorted[lo])
+}
+
+// ComputeQuartiles derives glucose quartiles (Q1/median/Q3) plus min/max
+// from a set of readings. Entries do not need to be pre-sorted; a sorted
+// copy of the Sgv values is used for percentile computation.
+func ComputeQuartiles(entries []Nightscoutdb, from time.Time, to time.Time) Quartiles {
+	q := Quartiles{From: from, To: to}
+	if len(entries) == 0 {
+		return q
+	}
+
+	sgvs := make([]int, len(entries))
+	for i, e := range entries {
+		sgvs[i] = e.Sgv
+	}
+	sort.Ints(sgvs)
+
+	q.Count = len(sgvs)
+	q.Min = sgvs[0]
+	q.Max = sgvs[len(sgvs)-1]
+	q.Q1 = percentile(sgvs, 0.25)
+	q.Median = percentile(sgvs, 0.5)
+	q.Q3 = percentile(sgvs, 0.75)
+
+	return q
 }
