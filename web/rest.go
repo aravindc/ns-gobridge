@@ -305,6 +305,42 @@ func hourlyPatternsHandler(db_client *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// variabilityResponse formats a model.Variability for display in the given
+// units. CoefficientOfVariationPct is a unitless ratio and passed through as-is.
+func variabilityResponse(period string, v model.Variability, units string) gin.H {
+	return gin.H{
+		"period":                    period,
+		"from":                      v.From,
+		"to":                        v.To,
+		"units":                     units,
+		"count":                     v.Count,
+		"averageSgv":                sgvForUnits(int(math.Round(v.AverageSgv)), units),
+		"standardDeviation":         sgvForUnits(int(math.Round(v.StandardDeviation)), units),
+		"coefficientOfVariationPct": v.CoefficientOfVariationPct,
+	}
+}
+
+// variabilityHandler returns glycemic variability (standard deviation and
+// coefficient of variation) for a given lookback period:
+// ?period=24h|1wk|1mth|3mths (default 24h).
+func variabilityHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "24h")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		variability := model.ComputeVariability(entries, from, to)
+		c.JSON(http.StatusOK, variabilityResponse(period, variability, units))
+	}
+}
+
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -324,6 +360,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/stats", statsHandler(db_client, cache))
 		api.GET("/quartiles", quartilesHandler(db_client))
 		api.GET("/patterns/hourly", hourlyPatternsHandler(db_client))
+		api.GET("/variability", variabilityHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
