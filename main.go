@@ -54,9 +54,8 @@ func init() {
 	log.Info("About to load env file: ", env)
 
 	envPath := filepath.Join(filepath.Dir(exePath), env)
-	_err := godotenv.Load(envPath)
-	if _err != nil {
-		log.Fatal("Unable to load .env file ", err)
+	if err := godotenv.Load(envPath); err != nil {
+		log.Fatal("Unable to load env file ", envPath, ": ", err)
 	}
 
 	_, recordCountExists := os.LookupEnv("RECORD_COUNT")
