@@ -2,15 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: health
+    env_file:
+      - .env.postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d health"]
       interval: 5s
@@ -23,15 +21,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      NS_ENV: development
-      PG_HOST: postgres
-      PG_PORT: "5432"
-      PG_SSLMODE: disable
-      # UNITS: mg/dl or mmol (default mg/dl); ?units= on any request overrides this.
-      # API_KEY: set this to require an X-API-Key header on /api/* (except /api/health).
-      # Strongly recommended once this is reachable by anything other than localhost.
+    env_file:
+      - .env.ns-gobridge
     volumes:
+      # Optionally set UNITS (mg/dl or mmol; ?units= on any request overrides
+      # this) and API_KEY (requires an X-API-Key header on /api/* except
+      # /api/health; strongly recommended once reachable by anything other
+      # than localhost) in .env.development alongside the Dexcom config.
       - ./.env.development:/app/.env.development:ro
     expose:
       - "8080"

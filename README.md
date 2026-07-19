@@ -63,13 +63,32 @@ docker build -t ns-gobridge .
 
 [docker-compose.yaml](docker-compose.yaml) runs the app alongside its own Postgres container and a [Caddy](https://caddyserver.com/) reverse proxy, with the `nightscoutdb` and `treatments` tables created automatically from [db/init/](db/init/) on first start. These init scripts only run against a fresh Postgres data volume — an already-initialized volume needs the new table(s) created manually (or the volume recreated) after pulling schema changes.
 
+The `postgres` and `ns-gobridge` services load their environment via `env_file` rather than inline `environment:` blocks, so before first use, create these two untracked files (matching the treatment of [.env.development](.env.development) — never commit real values):
+
+```bash
+# .env.postgres — consumed by the official postgres image
+cat > .env.postgres <<'EOF'
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=secret
+POSTGRES_DB=health
+EOF
+
+# .env.ns-gobridge — compose-specific overrides for ns-gobridge, on top of .env.development
+cat > .env.ns-gobridge <<'EOF'
+NS_ENV=development
+PG_HOST=postgres
+PG_PORT=5432
+PG_SSLMODE=disable
+EOF
+```
+
 ```bash
 docker compose up --build
 ```
 
 This uses [.env.development](.env.development) for Dexcom/app configuration (mounted read-only into the container) and connects to the bundled Postgres over plain TCP (`PG_SSLMODE=disable`, since it's a local container, not a TLS-terminated managed database). Update `.env.development` with real Dexcom credentials before starting.
 
-`ns-gobridge` no longer publishes port 8080 to the host directly — the [Caddyfile](Caddyfile)-configured `proxy` service is the single public entrypoint, listening on `80`/`443` and forwarding `/api/*` to `ns-gobridge:8080` over the internal compose network. All other paths return a 404 from the proxy.
+Neither `ns-gobridge` (port 8080) nor `postgres` (port 5432) publish their ports to the host directly — both are reachable only from other containers on the internal compose network. The [Caddyfile](Caddyfile)-configured `proxy` service is the single public entrypoint, listening on `80`/`443` and forwarding `/api/*` to `ns-gobridge:8080`. All other paths return a 404 from the proxy. (For local debugging access to Postgres directly, e.g. via `psql` or a GUI client, temporarily add a `ports: ["5432:5432"]` mapping back to the `postgres` service.)
 
 Caddy is configured for the domain `api.health.pers.dev` and requests/renews a real Let's Encrypt certificate for it automatically (Caddy's "automatic HTTPS"). For this to work in a real deployment:
 
