@@ -73,11 +73,12 @@ func parseRange(c *gin.Context) (time.Time, time.Time, error) {
 
 // parsePeriod resolves the ?period= query param (one of "24h", "1wk",
 // "1mth", "3mths") to a from/to range ending now, and the normalized period
-// string. Defaults to "24h" when absent; returns an error for any other value.
-func parsePeriod(c *gin.Context) (time.Time, time.Time, string, error) {
+// string. Defaults to defaultPeriod when absent; returns an error for any
+// other value.
+func parsePeriod(c *gin.Context, defaultPeriod string) (time.Time, time.Time, string, error) {
 	period := c.Query("period")
 	if period == "" {
-		period = "24h"
+		period = defaultPeriod
 	}
 	dur, ok := periods[period]
 	if !ok {
@@ -241,7 +242,7 @@ func quartilesResponse(period string, q model.Quartiles, units string) gin.H {
 // for a given lookback period: ?period=24h|1wk|1mth|3mths (default 24h).
 func quartilesHandler(db_client *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		from, to, period, err := parsePeriod(c)
+		from, to, period, err := parsePeriod(c, "24h")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
 			return
@@ -254,6 +255,53 @@ func quartilesHandler(db_client *sql.DB) gin.HandlerFunc {
 		units := resolveUnits(c)
 		quartiles := model.ComputeQuartiles(entries, from, to)
 		c.JSON(http.StatusOK, quartilesResponse(period, quartiles, units))
+	}
+}
+
+// hourlyPatternsResponse formats []model.HourlyPattern for display in the given units.
+func hourlyPatternsResponse(period string, from, to time.Time, patterns []model.HourlyPattern, units string) gin.H {
+	out := make([]gin.H, len(patterns))
+	for i, p := range patterns {
+		out[i] = gin.H{
+			"hour":       p.Hour,
+			"count":      p.Count,
+			"averageSgv": sgvForUnits(int(math.Round(p.AverageSgv)), units),
+			"min":        sgvForUnits(p.Min, units),
+			"q1":         sgvForUnits(int(math.Round(p.Q1)), units),
+			"median":     sgvForUnits(int(math.Round(p.Median)), units),
+			"q3":         sgvForUnits(int(math.Round(p.Q3)), units),
+			"max":        sgvForUnits(p.Max, units),
+		}
+	}
+	return gin.H{
+		"period": period,
+		"from":   from,
+		"to":     to,
+		"units":  units,
+		"hourly": out,
+	}
+}
+
+// hourlyPatternsHandler returns glucose statistics bucketed by hour-of-day
+// (0-23) over a given lookback period: ?period=24h|1wk|1mth|3mths (default
+// 1mth, since recurring daily patterns need more than one day of data per
+// hour bucket to be meaningful). Hours with no readings in the period are
+// omitted from the response.
+func hourlyPatternsHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "1mth")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		patterns := model.ComputeHourlyPatterns(entries)
+		c.JSON(http.StatusOK, hourlyPatternsResponse(period, from, to, patterns, units))
 	}
 }
 
@@ -275,6 +323,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/entries", entriesHandler(db_client))
 		api.GET("/stats", statsHandler(db_client, cache))
 		api.GET("/quartiles", quartilesHandler(db_client))
+		api.GET("/patterns/hourly", hourlyPatternsHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
