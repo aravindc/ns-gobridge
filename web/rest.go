@@ -305,6 +305,54 @@ func hourlyPatternsHandler(db_client *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// dayOfWeekPatternsResponse formats []model.DayOfWeekPattern for display in
+// the given units.
+func dayOfWeekPatternsResponse(period string, from, to time.Time, patterns []model.DayOfWeekPattern, units string) gin.H {
+	out := make([]gin.H, len(patterns))
+	for i, p := range patterns {
+		out[i] = gin.H{
+			"weekday":    p.Weekday.String(),
+			"count":      p.Count,
+			"averageSgv": sgvForUnits(int(math.Round(p.AverageSgv)), units),
+			"min":        sgvForUnits(p.Min, units),
+			"q1":         sgvForUnits(int(math.Round(p.Q1)), units),
+			"median":     sgvForUnits(int(math.Round(p.Median)), units),
+			"q3":         sgvForUnits(int(math.Round(p.Q3)), units),
+			"max":        sgvForUnits(p.Max, units),
+		}
+	}
+	return gin.H{
+		"period":  period,
+		"from":    from,
+		"to":      to,
+		"units":   units,
+		"weekday": out,
+	}
+}
+
+// dayOfWeekPatternsHandler returns glucose statistics bucketed by day of
+// week (Sunday-Saturday) over a given lookback period:
+// ?period=24h|1wk|1mth|3mths (default 1mth, since recurring weekly patterns
+// need more than a week of data per weekday bucket to be meaningful). Days
+// with no readings in the period are omitted from the response.
+func dayOfWeekPatternsHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "1mth")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		patterns := model.ComputeDayOfWeekPatterns(entries)
+		c.JSON(http.StatusOK, dayOfWeekPatternsResponse(period, from, to, patterns, units))
+	}
+}
+
 // variabilityResponse formats a model.Variability for display in the given
 // units. CoefficientOfVariationPct is a unitless ratio and passed through as-is.
 func variabilityResponse(period string, v model.Variability, units string) gin.H {
@@ -411,6 +459,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/patterns/hourly", hourlyPatternsHandler(db_client))
 		api.GET("/variability", variabilityHandler(db_client))
 		api.GET("/rate-of-change", rateOfChangeHandler(db_client))
+		api.GET("/patterns/day-of-week", dayOfWeekPatternsHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
