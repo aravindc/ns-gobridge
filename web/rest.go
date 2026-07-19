@@ -438,6 +438,51 @@ func rateOfChangeHandler(db_client *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// rollingTrendResponse formats []model.RollingWeek for display in the given units.
+func rollingTrendResponse(period string, from, to time.Time, weeks []model.RollingWeek, units string) gin.H {
+	out := make([]gin.H, len(weeks))
+	for i, w := range weeks {
+		out[i] = gin.H{
+			"from":                      w.From,
+			"to":                        w.To,
+			"count":                     w.Count,
+			"averageSgv":                sgvForUnits(int(math.Round(w.AverageSgv)), units),
+			"timeInRangePct":            w.TimeInRangePct,
+			"coefficientOfVariationPct": w.CoefficientOfVariationPct,
+		}
+	}
+	return gin.H{
+		"period": period,
+		"from":   from,
+		"to":     to,
+		"units":  units,
+		"weeks":  out,
+	}
+}
+
+// rollingTrendHandler slices a lookback period into successive 7-day
+// buckets and reports average glucose/TIR/CV per bucket, so that whether
+// control is improving or worsening over time can be read off directly:
+// ?period=24h|1wk|1mth|3mths (default 3mths, since a rolling weekly trend
+// needs several weeks of history to show a meaningful trajectory).
+func rollingTrendHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "3mths")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		weeks := model.ComputeRollingTrend(entries, from, to)
+		c.JSON(http.StatusOK, rollingTrendResponse(period, from, to, weeks, units))
+	}
+}
+
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -460,6 +505,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/variability", variabilityHandler(db_client))
 		api.GET("/rate-of-change", rateOfChangeHandler(db_client))
 		api.GET("/patterns/day-of-week", dayOfWeekPatternsHandler(db_client))
+		api.GET("/trend/rolling", rollingTrendHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
