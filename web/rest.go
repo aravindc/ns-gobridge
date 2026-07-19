@@ -341,6 +341,55 @@ func variabilityHandler(db_client *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// rateOfChangeResponse formats a model.RateOfChange for display in the
+// given units. Trend counts/percentages are unit-independent.
+func rateOfChangeResponse(period string, r model.RateOfChange, units string) gin.H {
+	trendCounts := make([]gin.H, len(r.TrendCounts))
+	for i, tc := range r.TrendCounts {
+		trendCounts[i] = gin.H{
+			"trend":     tc.Trend,
+			"direction": common.DirectionToArrow(tc.Trend),
+			"count":     tc.Count,
+			"pct":       tc.Pct,
+		}
+	}
+	return gin.H{
+		"period":            period,
+		"from":              r.From,
+		"to":                r.To,
+		"units":             units,
+		"count":             r.Count,
+		"trendCounts":       trendCounts,
+		"rocSamples":        r.RocSamples,
+		"averageAbsRoc":     rateForUnits(r.AverageAbsRoc, units),
+		"maxRoc":            rateForUnits(r.MaxRoc, units),
+		"minRoc":            rateForUnits(r.MinRoc, units),
+		"rapidRiseEpisodes": r.RapidRiseEpisodes,
+		"rapidFallEpisodes": r.RapidFallEpisodes,
+	}
+}
+
+// rateOfChangeHandler returns Dexcom trend-code distribution and computed
+// rate-of-change statistics (mg/dL per minute, from consecutive readings)
+// for a given lookback period: ?period=24h|1wk|1mth|3mths (default 24h).
+func rateOfChangeHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "24h")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		units := resolveUnits(c)
+		roc := model.ComputeRateOfChange(entries, from, to)
+		c.JSON(http.StatusOK, rateOfChangeResponse(period, roc, units))
+	}
+}
+
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -361,6 +410,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/quartiles", quartilesHandler(db_client))
 		api.GET("/patterns/hourly", hourlyPatternsHandler(db_client))
 		api.GET("/variability", variabilityHandler(db_client))
+		api.GET("/rate-of-change", rateOfChangeHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 

@@ -30,3 +30,14 @@ func sgvForUnits(mgdl int, units string) float64 {
 	}
 	return float64(mgdl)
 }
+
+// rateForUnits converts an mg/dL-per-minute rate of change for display in
+// the given units, rounding to two decimal places. Unlike sgvForUnits, the
+// input is already a float (rates are small; rounding to a whole mg/dL
+// first would lose the value entirely).
+func rateForUnits(mgdlPerMin float64, units string) float64 {
+	if units == "mmol" {
+		return math.Round(mgdlPerMin/mgdlPerMmol*100) / 100
+	}
+	return math.Round(mgdlPerMin*100) / 100
+}
