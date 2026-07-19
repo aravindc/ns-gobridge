@@ -29,23 +29,8 @@ services:
       # /api/health; strongly recommended once reachable by anything other
       # than localhost) in .env.development alongside the Dexcom config.
       - ./.env.development:/app/.env.development:ro
-    expose:
-      - "8080"
-
-  proxy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - ns-gobridge
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - "8085:8080"
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:

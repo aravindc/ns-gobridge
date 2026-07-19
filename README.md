@@ -61,7 +61,7 @@ docker build -t ns-gobridge .
 
 ### Docker Compose
 
-[docker-compose.yaml](docker-compose.yaml) runs the app alongside its own Postgres container and a [Caddy](https://caddyserver.com/) reverse proxy, with the `nightscoutdb` and `treatments` tables created automatically from [db/init/](db/init/) on first start. These init scripts only run against a fresh Postgres data volume — an already-initialized volume needs the new table(s) created manually (or the volume recreated) after pulling schema changes.
+[docker-compose.yaml](docker-compose.yaml) runs the app alongside its own Postgres container, with the `nightscoutdb` and `treatments` tables created automatically from [db/init/](db/init/) on first start. These init scripts only run against a fresh Postgres data volume — an already-initialized volume needs the new table(s) created manually (or the volume recreated) after pulling schema changes.
 
 The `postgres` and `ns-gobridge` services load their environment via `env_file` rather than inline `environment:` blocks, so before first use, create these two untracked files (matching the treatment of [.env.development](.env.development) — never commit real values):
 
@@ -88,17 +88,9 @@ docker compose up --build
 
 This uses [.env.development](.env.development) for Dexcom/app configuration (mounted read-only into the container) and connects to the bundled Postgres over plain TCP (`PG_SSLMODE=disable`, since it's a local container, not a TLS-terminated managed database). Update `.env.development` with real Dexcom credentials before starting.
 
-Neither `ns-gobridge` (port 8080) nor `postgres` (port 5432) publish their ports to the host directly — both are reachable only from other containers on the internal compose network. The [Caddyfile](Caddyfile)-configured `proxy` service is the single public entrypoint, listening on `80`/`443` and forwarding `/api/*` to `ns-gobridge:8080`. All other paths return a 404 from the proxy. (For local debugging access to Postgres directly, e.g. via `psql` or a GUI client, temporarily add a `ports: ["5432:5432"]` mapping back to the `postgres` service.)
+`postgres` doesn't publish its port to the host — it's only reachable from other containers on the internal compose network (`ns-gobridge` connects via `PG_HOST=postgres`). For local debugging access directly, e.g. via `psql` or a GUI client, temporarily add a `ports: ["5432:5432"]` mapping back to the `postgres` service.
 
-Caddy is configured for the domain `api.health.pers.dev` and requests/renews a real Let's Encrypt certificate for it automatically (Caddy's "automatic HTTPS"). For this to work in a real deployment:
-
-- DNS for `api.health.pers.dev` must point at the host running this compose stack.
-- Ports 80 and 443 must be reachable from the internet (port 80 is used for the ACME HTTP-01 challenge as well as HTTP→HTTPS redirects).
-- The `caddy_data`/`caddy_config` named volumes persist the issued certificate across restarts — don't remove them casually, or Caddy will re-request a cert from Let's Encrypt (which is rate-limited).
-
-For local development without a real domain/public DNS, edit [Caddyfile](Caddyfile) to use `localhost` (or `:80`) with `tls internal` instead, which makes Caddy issue a self-signed certificate from its own internal CA rather than requesting one from Let's Encrypt.
-
-The REST API is then available at `https://api.health.pers.dev/api/...` (or `http://localhost/api/...` if using the local-dev Caddyfile variant above).
+`ns-gobridge` publishes host port **8085** (mapped to its container-internal port 8080, which is unchanged) rather than 8080 directly, to avoid clashing with other reverse-proxy setups (e.g. [Zoraxy](https://zoraxy.aroz.org/)) that may already be using standard ports on the same host. Point your reverse proxy of choice at `http://<host>:8085` and forward `/api/*` (or all paths) to it — the REST API is then reachable however your proxy is configured to expose it, or directly at `http://localhost:8085` without one.
 
 ## REST API
 
@@ -142,14 +134,14 @@ All glucose values (`sgv`, `averageSgv`, `minSgv`, `maxSgv`, quartiles, hourly/d
 Examples:
 
 ```bash
-curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/stats?from=2026-07-17T00:00:00Z&to=2026-07-18T00:00:00Z"
-curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/device/current?units=mmol"
-curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/patterns/hourly?period=1mth"
-curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/variability?period=1wk"
+curl -H "X-API-Key: $API_KEY" "http://localhost:8085/api/stats?from=2026-07-17T00:00:00Z&to=2026-07-18T00:00:00Z"
+curl -H "X-API-Key: $API_KEY" "http://localhost:8085/api/device/current?units=mmol"
+curl -H "X-API-Key: $API_KEY" "http://localhost:8085/api/patterns/hourly?period=1mth"
+curl -H "X-API-Key: $API_KEY" "http://localhost:8085/api/variability?period=1wk"
 
 curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
   -d '{"carbs": 45, "insulin": 4.5, "mealType": "lunch", "foodDescription": "pasta with garlic bread"}' \
-  "http://localhost:8080/api/treatments"
+  "http://localhost:8085/api/treatments"
 ```
 
 ## Testing
