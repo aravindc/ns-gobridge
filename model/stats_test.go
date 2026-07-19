@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -105,5 +106,56 @@ func TestComputeQuartilesSingleEntry(t *testing.T) {
 	q := ComputeQuartiles(entries, base, base)
 	if q.Q1 != 100 || q.Median != 100 || q.Q3 != 100 {
 		t.Errorf("Q1/Median/Q3 = %v/%v/%v, want 100/100/100", q.Q1, q.Median, q.Q3)
+	}
+}
+
+func TestComputeVariability(t *testing.T) {
+	base := time.Now()
+	// mean = 100; population variance = ((-10)^2 + 0^2 + 10^2) / 3 = 200/3
+	entries := []Nightscoutdb{
+		{Sgv: 90, Ns_datetime: base},
+		{Sgv: 100, Ns_datetime: base.Add(5 * time.Minute)},
+		{Sgv: 110, Ns_datetime: base.Add(10 * time.Minute)},
+	}
+
+	v := ComputeVariability(entries, base, base.Add(10*time.Minute))
+
+	if v.Count != 3 {
+		t.Errorf("Count = %d, want 3", v.Count)
+	}
+	if v.AverageSgv != 100 {
+		t.Errorf("AverageSgv = %v, want 100", v.AverageSgv)
+	}
+	wantSD := math.Sqrt(200.0 / 3.0)
+	if math.Abs(v.StandardDeviation-wantSD) > 1e-9 {
+		t.Errorf("StandardDeviation = %v, want %v", v.StandardDeviation, wantSD)
+	}
+	wantCV := 100 * wantSD / 100
+	if math.Abs(v.CoefficientOfVariationPct-wantCV) > 1e-9 {
+		t.Errorf("CoefficientOfVariationPct = %v, want %v", v.CoefficientOfVariationPct, wantCV)
+	}
+}
+
+func TestComputeVariabilityEmpty(t *testing.T) {
+	from := time.Now()
+	to := from.Add(time.Hour)
+	v := ComputeVariability(nil, from, to)
+	if v.Count != 0 {
+		t.Errorf("Count = %d, want 0", v.Count)
+	}
+}
+
+func TestComputeVariabilityConstantValues(t *testing.T) {
+	base := time.Now()
+	entries := []Nightscoutdb{
+		{Sgv: 100, Ns_datetime: base},
+		{Sgv: 100, Ns_datetime: base.Add(5 * time.Minute)},
+	}
+	v := ComputeVariability(entries, base, base.Add(5*time.Minute))
+	if v.StandardDeviation != 0 {
+		t.Errorf("StandardDeviation = %v, want 0 for constant values", v.StandardDeviation)
+	}
+	if v.CoefficientOfVariationPct != 0 {
+		t.Errorf("CoefficientOfVariationPct = %v, want 0 for constant values", v.CoefficientOfVariationPct)
 	}
 }

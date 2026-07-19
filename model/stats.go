@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"sort"
 	"time"
 )
@@ -137,4 +138,46 @@ func ComputeQuartiles(entries []Nightscoutdb, from time.Time, to time.Time) Quar
 	q.Q3 = percentile(sgvs, 0.75)
 
 	return q
+}
+
+type Variability struct {
+	From              time.Time `json:"from"`
+	To                time.Time `json:"to"`
+	Count             int       `json:"count"`
+	AverageSgv        float64   `json:"averageSgv"`
+	StandardDeviation float64   `json:"standardDeviation"`
+	// CoefficientOfVariationPct is SD/mean as a percentage. The ADA/ATTD
+	// consensus (Battelino et al. 2019) treats <=36% as an indicator of
+	// stable glycemic control; higher values suggest unstable control
+	// independent of how much time is spent in range.
+	CoefficientOfVariationPct float64 `json:"coefficientOfVariationPct"`
+}
+
+// ComputeVariability derives glycemic variability (population standard
+// deviation and coefficient of variation) from a set of readings.
+func ComputeVariability(entries []Nightscoutdb, from time.Time, to time.Time) Variability {
+	v := Variability{From: from, To: to}
+	if len(entries) == 0 {
+		return v
+	}
+
+	v.Count = len(entries)
+	sum := 0
+	for _, e := range entries {
+		sum += e.Sgv
+	}
+	v.AverageSgv = float64(sum) / float64(len(entries))
+
+	var sumSquaredDiff float64
+	for _, e := range entries {
+		diff := float64(e.Sgv) - v.AverageSgv
+		sumSquaredDiff += diff * diff
+	}
+	v.StandardDeviation = math.Sqrt(sumSquaredDiff / float64(len(entries)))
+
+	if v.AverageSgv != 0 {
+		v.CoefficientOfVariationPct = 100 * v.StandardDeviation / v.AverageSgv
+	}
+
+	return v
 }
