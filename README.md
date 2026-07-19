@@ -88,7 +88,7 @@ docker compose up --build
 
 This uses [.env.development](.env.development) for Dexcom/app configuration (mounted read-only into the container) and connects to the bundled Postgres over plain TCP (`PG_SSLMODE=disable`, since it's a local container, not a TLS-terminated managed database). Update `.env.development` with real Dexcom credentials before starting.
 
-`ns-gobridge` no longer publishes port 8080 to the host directly — the [Caddyfile](Caddyfile)-configured `proxy` service is the single public entrypoint, listening on `80`/`443` and forwarding `/api/*` to `ns-gobridge:8080` over the internal compose network. All other paths return a 404 from the proxy.
+Neither `ns-gobridge` (port 8080) nor `postgres` (port 5432) publish their ports to the host directly — both are reachable only from other containers on the internal compose network. The [Caddyfile](Caddyfile)-configured `proxy` service is the single public entrypoint, listening on `80`/`443` and forwarding `/api/*` to `ns-gobridge:8080`. All other paths return a 404 from the proxy. (For local debugging access to Postgres directly, e.g. via `psql` or a GUI client, temporarily add a `ports: ["5432:5432"]` mapping back to the `postgres` service.)
 
 Caddy is configured for the domain `api.health.pers.dev` and requests/renews a real Let's Encrypt certificate for it automatically (Caddy's "automatic HTTPS"). For this to work in a real deployment:
 
