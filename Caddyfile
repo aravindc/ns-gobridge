@@ -1,9 +1,0 @@
-api.health.pers.dev {
-	handle /api/* {
-		reverse_proxy ns-gobridge:8080
-	}
-
-	handle {
-		respond "not found" 404
-	}
-}
