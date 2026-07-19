@@ -483,6 +483,60 @@ func rollingTrendHandler(db_client *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// gapResponse formats a model.Gap, expressing Duration in whole seconds
+// since JSON has no native duration type.
+func gapResponse(g model.Gap) gin.H {
+	return gin.H{
+		"from":            g.From,
+		"to":              g.To,
+		"durationSeconds": int(g.Duration.Seconds()),
+	}
+}
+
+// dataQualityResponse formats a model.DataQuality.
+func dataQualityResponse(period string, dq model.DataQuality) gin.H {
+	gaps := make([]gin.H, len(dq.Gaps))
+	for i, g := range dq.Gaps {
+		gaps[i] = gapResponse(g)
+	}
+	resp := gin.H{
+		"period":        period,
+		"from":          dq.From,
+		"to":            dq.To,
+		"count":         dq.Count,
+		"expectedCount": dq.ExpectedCount,
+		"coveragePct":   dq.CoveragePct,
+		"gaps":          gaps,
+	}
+	if dq.LargestGap.Duration > 0 {
+		resp["largestGap"] = gapResponse(dq.LargestGap)
+	}
+	return resp
+}
+
+// dataQualityHandler returns sensor coverage and gap information for a
+// given lookback period: ?period=24h|1wk|1mth|3mths (default 1wk, since a
+// single day gives little context on data quality). Useful for
+// understanding whether TIR/HbA1c/GMI figures from other endpoints are
+// based on representative coverage or skewed by missing data (e.g. an
+// overnight sensor dropout).
+func dataQualityHandler(db_client *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		from, to, period, err := parsePeriod(c, "1wk")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "period must be one of: 24h, 1wk, 1mth, 3mths"})
+			return
+		}
+		entries, err := db.SelectEntriesBetween(db_client, from.UnixMilli(), to.UnixMilli())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		dq := model.ComputeDataQuality(entries, from, to)
+		c.JSON(http.StatusOK, dataQualityResponse(period, dq))
+	}
+}
+
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -506,6 +560,7 @@ func Router(db_client *sql.DB) *gin.Engine {
 		api.GET("/rate-of-change", rateOfChangeHandler(db_client))
 		api.GET("/patterns/day-of-week", dayOfWeekPatternsHandler(db_client))
 		api.GET("/trend/rolling", rollingTrendHandler(db_client))
+		api.GET("/data-quality", dataQualityHandler(db_client))
 		api.GET("/device/current", deviceCurrentHandler(db_client, cache))
 	}
 
